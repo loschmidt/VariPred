@@ -391,11 +391,11 @@ def predict_results(y_true, preds, record_id, train=False, output_name=None):
 
         preds = np.array(preds >= 0.2, dtype=int)
 
-        if not os.path.exists(f'../example/{output_name}.txt'):
+        if not os.path.exists(output_name):
             header = "target_id\tprediction\n"
-            with open(f'{result_path}/{output_name}.txt', 'a') as file_writer:
+            with open(output_name, 'a') as file_writer:
                 file_writer.write(header)
 
         for ids, pred_value in zip(record_id, preds):
-            with open(f'{result_path}/{output_name}.txt', 'a+') as f:
+            with open(output_name, 'a+') as f:
                 f.write(f'{ids}\t{pred_value}\n')
