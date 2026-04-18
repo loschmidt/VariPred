@@ -1,7 +1,8 @@
+from pathlib import Path
+
 import config
 
 from tqdm import tqdm
-import pickle
 import os
 import math
 
@@ -351,8 +352,9 @@ def predict(test_loader, model, device):
     return preds, labels
 
 
-def predict_results(y_true, preds, record_id, train=False, output_name=None):
-    result_path = f'../example/output_results'  # path for saving predictions
+def predict_results(y_true, preds, record_id, train=False, output_name=f'../example/output_results'):
+    result_file = Path(output_name)
+    result_path = result_file.parent.absolute()
 
     if not os.path.exists(f'{result_path}'):
         os.makedirs(result_path)
@@ -391,11 +393,11 @@ def predict_results(y_true, preds, record_id, train=False, output_name=None):
 
         preds = np.array(preds >= 0.2, dtype=int)
 
-        if not os.path.exists(output_name):
+        if not result_file.exists():
             header = "target_id\tprediction\n"
             with open(output_name, 'a') as file_writer:
                 file_writer.write(header)
 
         for ids, pred_value in zip(record_id, preds):
-            with open(output_name, 'a+') as f:
+            with open(result_file, 'a+') as f:
                 f.write(f'{ids}\t{pred_value}\n')
