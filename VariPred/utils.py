@@ -76,9 +76,9 @@ def collate_fn(batch):
 # model training part:
 
 # fetch the embeddings
-def unpickler(ds_name):
-
-    path = f'{config.esm_storage_path}/{ds_name}.pt'
+def unpickler(ds_name, path = None):
+    if path is None:
+        path = f'{config.esm_storage_path}/{ds_name}.pt'
 
     pt_embeds = torch.load(path)
     data_X = np.array(pt_embeds['x'])

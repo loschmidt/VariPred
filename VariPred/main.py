@@ -31,7 +31,7 @@ def get_embeds(df, dataset, path = config.esm_storage_path):
 
     df['record_id'] = df['target_id']
 
-    embeds.generate_embeds_and_save(df, save_path = path, data_class=dataset)
+    return embeds.generate_embeds_and_save(df, save_path = path, data_class=dataset)
 
 
 def train_VariPred(train_ds, test_ds, valid_ds=None,train=True):
@@ -111,7 +111,7 @@ def train_VariPred(train_ds, test_ds, valid_ds=None,train=True):
                           )
 
 
-def run_VariPred(target_ds,output):
+def run_VariPred(target_ds,output, embeddings):
 
     '''
 
@@ -124,7 +124,7 @@ def run_VariPred(target_ds,output):
     '''
 
 
-    X_target, y_target, record_id = utils.unpickler(ds_name=target_ds)
+    X_target, y_target, record_id = utils.unpickler(ds_name=target_ds, path=embeddings)
     print('X_target shape: ', X_target.shape)
 
     target_dataset = utils.VariPredDataset(X_target, y_target)
@@ -186,10 +186,9 @@ if __name__ == '__main__':
         # predict the target df with VariPred
         target_df = pd.read_csv(f'{storage_path}/{args.pred}.csv')
         target_df['label'] = -1 # it doesn't matter what the true label is. It's just to ensure the programme can run properly.
-        if not os.path.exists(f'{config.esm_storage_path}/{args.pred}.pkl'):
-            print(f'getting embeds for {args.pred}.csv')
-            get_embeds(target_df, dataset = args.pred, path = storage_path)
-        run_VariPred(target_ds=args.pred, output=args.output)
+        print(f'getting embeds for {args.pred}.csv')
+        embeddings = get_embeds(target_df, dataset = args.pred, path = storage_path)
+        run_VariPred(target_ds=args.pred, output=args.output, embeddings=embeddings)
 
 
 

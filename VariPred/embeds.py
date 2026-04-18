@@ -158,3 +158,4 @@ def generate_embeds_and_save(df, save_path, data_class, device=config.device):
     save_file = os.path.join(save_path, data_class)
     print(f"****** {data_class} embeddings saved to: {save_file}.pt ******")
     torch.save(final_result, f'{save_file}.pt')
+    return f'{save_file}.pt'
