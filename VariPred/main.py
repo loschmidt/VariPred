@@ -1,29 +1,23 @@
+import embeds
 import utils
 import config
 import pandas as pd
-import re
 import os
-import sys
 import argparse
-import logging
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader
 import torch
-import esm
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def get_embeds(df, dataset):
+def get_embeds(df, dataset, path = config.esm_storage_path):
     '''
 
     input: dataframe (e.g. ../example/dataset/train.csv)
     output: .pt (e.g. ../example/embeds/train.pt)
 
     '''
-
-    model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
-    batch_converter = alphabet.get_batch_converter()
 
     # truncate the long sequence into 1022
     df['Length'] = df['wt_seq'].apply(lambda x: len(x))
@@ -37,8 +31,7 @@ def get_embeds(df, dataset):
 
     df['record_id'] = df['target_id']
 
-    utils.generate_embeds_and_save(df, save_path = config.esm_storage_path, data_class=dataset, model = model, batch_converter = batch_converter, alphabet = alphabet)
-
+    embeds.generate_embeds_and_save(df, save_path = path, data_class=dataset)
 
 
 def train_VariPred(train_ds, test_ds, valid_ds=None,train=True):
@@ -156,7 +149,7 @@ def run_VariPred(target_ds,output):
                           output_name=output
                           )
     print()
-    print(f"Your prediction results are saved in ../example/output_results/{output}.txt")
+    print(f"Your prediction results are saved in {output}")
 
 
 parser = argparse.ArgumentParser(description='add args for training the VariPred model')
@@ -195,7 +188,7 @@ if __name__ == '__main__':
         target_df['label'] = -1 # it doesn't matter what the true label is. It's just to ensure the programme can run properly.
         if not os.path.exists(f'{config.esm_storage_path}/{args.pred}.pkl'):
             print(f'getting embeds for {args.pred}.csv')
-            get_embeds(target_df, dataset = args.pred)
+            get_embeds(target_df, dataset = args.pred, path = storage_path)
         run_VariPred(target_ds=args.pred, output=args.output)
 
 

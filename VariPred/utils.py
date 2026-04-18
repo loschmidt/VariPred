@@ -14,7 +14,7 @@ import torch.nn as nn
 from sklearn.metrics import classification_report
 from sklearn.metrics import matthews_corrcoef
 from sklearn.metrics import roc_auc_score
-from torch.utils.data import TensorDataset, DataLoader, RandomSampler, SequentialSampler, Dataset
+from torch.utils.data import Dataset
 
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.SettingWithCopyWarning)
@@ -67,95 +67,10 @@ def df_process(df):
 
     return truncated_result
 
-
-class ESMDataset(Dataset):
-    def __init__(self,row, datatype):
-        super().__init__()
-        self.seq = row[f'{datatype}_seq']
-        self.aa = row[f'{datatype}_aa']
-        self.gene_id = row['record_id']
-        self.aa_index = row['new_index']
-        self.label = row['label']
-    def __len__(self):
-        return len(self.seq)
-    def __getitem__(self, idx):
-        return (self.label[idx],self.seq[idx],self.aa[idx],self.gene_id[idx],self.aa_index[idx])
-
         
 def collate_fn(batch):
     labels, sequences, aa, gene_id, aa_index = zip(*batch)
     return list(zip(labels, sequences)), aa, gene_id, aa_index
-
-def get_logits(total_logits,aa,esm_dict):
-    softmax = nn.Softmax(dim=-1)
-    aa_id = [esm_dict[x]-4 for x in aa]
-    
-    batch_aa_id = torch.arange(len(aa_id))
-    logits = softmax(total_logits)[batch_aa_id, aa_id]
-    return logits
-    
-def generate_embeds_and_save(df, save_path, data_class, model, batch_converter, alphabet, device=config.device):
-    esm_dict = alphabet.tok_to_idx
-    batch_converter = alphabet.get_batch_converter()
-    model = model.to(device) # move your model to GPU
-
-    wt_dataset = ESMDataset(df,datatype="wt")
-    wt_dataloader = DataLoader(wt_dataset, batch_size=config.batch_size_for_embed_gen, shuffle=False,collate_fn=collate_fn, drop_last=False)
-    mt_dataset = ESMDataset(df,datatype="mt")
-    mt_dataloader = DataLoader(mt_dataset, batch_size=config.batch_size_for_embed_gen, shuffle=False,collate_fn=collate_fn, drop_last=False)
-
-    label_for_embeds =[]
-    gene_id_list = []
-    concat = []
-    logits_list = []
-    
-    for i,j in tqdm(zip(wt_dataloader,mt_dataloader),total=len(wt_dataloader)):
-        batch_labels, _, wt_batch_tokens = batch_converter(i[0])
-        _, _, mt_batch_tokens = batch_converter(j[0])
-        wt_aa, wt_gene_id, wt_aa_index = i[1],i[2],i[3]
-        mt_aa = j[1]
-        label_for_embeds.append(batch_labels)
-        gene_id_list.append(wt_gene_id)
-        
-        with torch.no_grad():
-            aa_index = torch.tensor(wt_aa_index).to(device)
-            batch_indices = torch.arange(len(aa_index))
-            wt_result = model(wt_batch_tokens.to(device), repr_layers=[33])
-            mt_result = model(mt_batch_tokens.to(device), repr_layers=[33]) 
-            
-            wt_repr = wt_result["representations"][33][batch_indices, aa_index] # fetch embeds
-            mt_repr = mt_result["representations"][33][batch_indices, aa_index] # batch_size, embedding_size
-            
-            result = torch.cat((wt_repr, mt_repr), dim=1) # concat wt_emb with wt_emb -> batch_size, 2560
-
-            total_logits = wt_result['logits'][:,:,4:24] # batch_size, max_seq_len, 20
-            total_logits = total_logits[batch_indices, aa_index]
-            
-            wt_logits = get_logits(total_logits, wt_aa, esm_dict)
-            mt_logits = get_logits(total_logits, mt_aa, esm_dict)
-            logits = torch.log(mt_logits/wt_logits).unsqueeze(1)
-            
-            concat.append(result)
-            logits_list.append(logits)
-            
-    concat = torch.cat(concat, dim=0).detach().cpu() # concat all embeddings together -> shape: length of the dataset, 2560
-    logits_list=torch.cat(logits_list, dim=0).detach().cpu()
-    gene_list = [str(x) for tup in gene_id_list for x in tup]
-    label_list = [x for item in label_for_embeds for x in item]
-    final_result = {'x': concat, 'label': label_list,'logits': logits_list, 'record_id': gene_list}
-    
-    if not os.path.isdir(f'{save_path}'):
-        os.makedirs(f'{save_path}')  # create the dir for embeddings
-
-    print(f"****** {data_class} embedding Saving path is: ",
-          save_path, ' ******')
-    
-    save_path = save_path + '/' + data_class
-    
-    # save your embeddings
-    torch.save(final_result,f'{save_path}.pt') # save the embeddings
-    
-
 
 
 # model training part:
