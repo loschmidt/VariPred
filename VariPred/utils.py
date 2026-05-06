@@ -80,7 +80,7 @@ def unpickler(ds_name, path = None):
     if path is None:
         path = f'{config.esm_storage_path}/{ds_name}.pt'
 
-    pt_embeds = torch.load(path)
+    pt_embeds = torch.load(path, weights_only=False)
     data_X = np.array(pt_embeds['x'])
     logits = np.array(pt_embeds['logits']).reshape(-1, 1)
     
