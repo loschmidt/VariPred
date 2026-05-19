@@ -305,14 +305,12 @@ def predict_results(y_true, preds, record_id, train=False, output_name=f'../exam
             file_writer.write(f'MCC: {MCC}\nroc_auc_score: {auc_value}\n')
 
     else:
-
-        preds = np.array(preds >= 0.2, dtype=int)
-
+        labels = np.array(preds >= 0.2, dtype=int)
         if not result_file.exists():
-            header = "target_id\tprediction\n"
+            header = "target_id\tprediction\tscore\n"
             with open(output_name, 'a') as file_writer:
                 file_writer.write(header)
 
-        for ids, pred_value in zip(record_id, preds):
+        for ids, pred_value, score in zip(record_id, labels, preds):
             with open(result_file, 'a+') as f:
-                f.write(f'{ids}\t{pred_value}\n')
+                f.write(f'{ids}\t{pred_value}\t{score}\n')
